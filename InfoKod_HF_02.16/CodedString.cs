@@ -14,15 +14,16 @@ namespace InfoKod_HF_02._16
 		int stringLength;
 		string generatedString;
 		Dictionary<char, int> charCount;
+		Dictionary<char, int> unorderedCharCount;
 		Dictionary<char, double> charChance;
+		Dictionary<char, double> unorderedCharChance;
 		double entrophy;
 		int lovestBorder;
 		int highestBorder;
-		double efficiency;
-		Dictionary<char, string> bynaryTree;
-		class Node
+		Dictionary<char, string> codeWords;
+		class Node<T> where T : struct
 		{
-			public Node(char _ch, int _freq, Node _left = null, Node _right = null)
+			public Node(char _ch, T _freq, Node<T> _left = null, Node<T> _right = null)
 			{
 				ch = _ch;
 				freq = _freq;
@@ -30,8 +31,8 @@ namespace InfoKod_HF_02._16
 				right = _right;
 			}
 			public char ch;
-			public int freq;
-			public Node left, right;
+			public T freq;
+			public Node<T> left, right;
 		}
 		string compressedString;
 
@@ -81,6 +82,9 @@ namespace InfoKod_HF_02._16
 		{
 			List<char> letters = new List<char>();
 			List<char> characterList = new List<char>();
+			List<int> chances = new List<int>() { 25 };
+			int chanceSum = 25;
+
 			for (int i = 97; i < 123; i++)
 			{
 				letters.Add((char)i);
@@ -103,7 +107,7 @@ namespace InfoKod_HF_02._16
 				stringLength = 9999;
 			}
 
-			Console.WriteLine("\n\nA gereált karakterek a következő:");
+			Console.Write("\n\nA gereált karakterek a következő:\n { ");
 			for (int i = 0; i < charNum; i++)
 			{
 				// ASCII a, z
@@ -111,38 +115,57 @@ namespace InfoKod_HF_02._16
 				char newChar = letters[newCharPos];
 				letters.RemoveAt(newCharPos);
 				characterList.Add(newChar);
+
+				if (i < charNum - 1)
+				{
+					int actualChance = random.Next(chanceSum, 100);
+					chances.Insert(0, actualChance);
+					chanceSum += actualChance - chanceSum;
+				}
+
 				Console.Write(newChar);
 				if (i != charNum - 1) Console.Write(", ");
 			}
+			Console.WriteLine(" }");
 
 
 			generatedString = string.Empty;
 			for (int i = 0; i < stringLength; i++)
 			{
-				generatedString += characterList[random.Next(0, characterList.Count)];
+				int chance = chances.FirstOrDefault(x => x < random.Next(0, 100));
+				generatedString += characterList[
+					(chance == 0) ? 0 : chances.IndexOf(chance)];
 			}
 
-			Console.WriteLine("\n\nA gereált szöveg a következő:\n" + generatedString);
+			Console.WriteLine("\n\nA gereált szöveg a következő:\n { " + generatedString + " }");
 			Console.WriteLine();
 		}
 
 		public void CountNumbers()
 		{
-			charCount = new Dictionary<char, int>();
+			unorderedCharCount = new Dictionary<char, int>();
 
 			for (int i = 0; i < generatedString.Length; i++)
 			{
-				if (charCount.ContainsKey(generatedString[i]))
+				if (unorderedCharCount.ContainsKey(generatedString[i]))
 				{
-					charCount[generatedString[i]]++;
+					unorderedCharCount[generatedString[i]]++;
 				}
 				else
 				{
-					charCount.Add(generatedString[i], 1);
+					unorderedCharCount.Add(generatedString[i], 1);
 				}
 			}
 
-			charCount = new Dictionary<char, int>(charCount.OrderByDescending(x => x.Value));
+			charCount = new Dictionary<char, int>(unorderedCharCount.OrderByDescending(x => x.Value));
+
+			Console.Write("\nA begyűjtött rendezettlenül:\n  { ");
+			foreach (KeyValuePair<char, int> character in unorderedCharCount)
+			{
+				Console.Write("{0} db '{1}'", character.Value, character.Key);
+				if (!character.Equals(unorderedCharCount.Last())) Console.Write("; ");
+			}
+			Console.WriteLine(" }");
 
 			Console.Write("\nA begyűjtött rendezve:\n  { ");
 			foreach (KeyValuePair<char, int> character in charCount)
@@ -155,10 +178,22 @@ namespace InfoKod_HF_02._16
 
 		public void CalculateChances()
 		{
+			unorderedCharChance = new Dictionary<char, double> ();
+
+			Console.Write("\nA begyűjtött karakterek valószínűségei rendezettlen:\n  { ");
+			foreach (KeyValuePair<char, int> ci in unorderedCharCount)
+			{
+				double chance = (double)ci.Value / (double)generatedString.Length;
+				unorderedCharChance.Add(ci.Key, chance);
+				Console.Write("p({0}): {1:0.00}", ci.Key, chance);
+				if (!ci.Equals(unorderedCharCount.Last())) Console.Write("; ");
+			}
+			Console.WriteLine(" }");
+
 			charChance = new Dictionary<char, double>();
 
 			Console.Write("\nA begyűjtött karakterek valószínűségei:\n  { ");
-			foreach(KeyValuePair<char, int> ci in charCount)
+			foreach (KeyValuePair<char, int> ci in charCount)
 			{
 				double chance = (double)ci.Value / (double)generatedString.Length;
 				charChance.Add(ci.Key, chance);
@@ -171,7 +206,7 @@ namespace InfoKod_HF_02._16
 		public void CcalculateEntropy()
 		{
 			entrophy = 0.0f;
-			foreach(var cc in charChance)
+			foreach (var cc in charChance)
 			{
 				entrophy += cc.Value * Math.Log2(cc.Value);
 			}
@@ -185,53 +220,74 @@ namespace InfoKod_HF_02._16
 
 		public void CalculateLowestBorder()
 		{
-			lovestBorder = (int)Math.Floor(entrophy / Math.Log2(charNum)) + 1;
+			lovestBorder = (int)Math.Floor(Math.Log2(charNum));
 			Console.WriteLine("A kódsor  alsó határa: {0:0.00}", lovestBorder);
 		}
 
 		public void CalculateHighestBorder()
 		{
-			highestBorder = (int)Math.Ceiling(entrophy / Math.Log2(charNum) + 1) + 1;
+			highestBorder = (int)Math.Ceiling(Math.Log2(charNum));
 			Console.WriteLine("A kódsor felső határa: {0:0.00}", highestBorder);
 		}
 
-		//public void CalculateEfficiency()
-		//{
-		//	efficiency = entrophy / 
-		//}
-
+		/// <summary>
+		/// Le Huffmann kód.
+		/// </summary>
 		public void GeneratePrefixCodeTree()
 		{
-			bynaryTree = new Dictionary<char, string>();
-			List<Node> nodes = new List<Node>();
+			codeWords = new Dictionary<char, string>();
+			List<Node<int>> nodes = new List<Node<int>>();
 
 			foreach (var item in charCount)
 			{
-				nodes.Insert(0, new Node(item.Key, item.Value));
+				nodes.Insert(0, new Node<int>(item.Key, item.Value));
 			}
 
 			while (nodes.Count != 1)
 			{
-				Node left = nodes.First(); nodes.Remove(left);
-				Node right = nodes.First(); nodes.Remove(right);
+				Node<int> left = nodes.First(); nodes.Remove(left);
+				Node<int> right = nodes.First(); nodes.Remove(right);
+				Node<int> newNode = new Node<int>('\0', left.freq + right.freq, left, right);
 
-				nodes.Add(new Node('\0', left.freq + right.freq, left, right));
+				if (nodes.Count == 0)
+				{
+					nodes.Add(newNode);
+					break;
+				}
+
+				for (int i = 0; i < nodes.Count; i++)
+				{
+					if (nodes[i].freq > newNode.freq)
+					{
+						nodes.Insert(i, newNode);
+						break;
+					}
+					else if (i == nodes.Count - 1) {
+						nodes.Add(newNode);
+						break;
+					}
+				}
 			}
 
-			Node root = nodes.Last();
+			Node<int> root = nodes.Last();
 			Encode(root, string.Empty);
-			//bynaryTree = new Dictionary<string, char>(bynaryTree.Reverse());
 
+			ShowCodedWords();
+		}
+
+		private void ShowCodedWords()
+		{
 			Console.WriteLine("\n\nA begyűjtött karakterek számított kódjai:\n  {");
-			foreach (var item in bynaryTree)
+			foreach (var item in codeWords)
 			{
 				Console.Write("    {0}: \t'{1}'", item.Value, item.Key);
-				if (!item.Equals(bynaryTree.Last())) Console.WriteLine(",");
+				if (!item.Equals(codeWords.Last())) Console.WriteLine(",");
 			}
 			Console.WriteLine("\n  }");
 		}
 
-		private void Encode(Node root, string str)
+		//Huffmann
+		private void Encode(Node<int> root, string str)
 		{
 			if (root == null)
 			{
@@ -247,14 +303,14 @@ namespace InfoKod_HF_02._16
 			Console.Write(lineSpaces);
 			if (str.Length != 0)
 			{
-				Console.Write("∟{0}", str.Last());
+				Console.Write("∟{0} ({1})", str.Last(), root.freq);
 			}
 
 			if (root.left == null && root.right == null)
 			{
-				bynaryTree.Add(root.ch, str != string.Empty ? str : "1");
+				codeWords.Add(root.ch, str != string.Empty ? str : "1");
 				if (str != string.Empty) Console.Write(": '{0}'", root.ch);
-				else Console.Write("{0}  ∟1: '{1}'", lineSpaces, root.ch);
+				else Console.Write("{0}  ∟1 ({2}): '{1}'", lineSpaces, root.ch, root.freq);
 			}
 
 			Encode(root.left, str + "0");
@@ -268,22 +324,23 @@ namespace InfoKod_HF_02._16
 
 			for (int i = 0; i < generatedString.Length; i++)
 			{
-				compressedString += bynaryTree[generatedString[i]];
+				compressedString += codeWords[generatedString[i]];
 				originalBinary += Convert.ToString(generatedString[i], 2).PadLeft(8, '0');
 				//Console.Write(bynaryTree[generatedString[i]]);
 				//if (i != generatedString.Length - 1) Console.Write(", ");
 			}
 
-			Console.WriteLine("\nEredeti szöveg binárisan:\n { ");
-			Console.WriteLine(originalBinary);
+			Console.Write("\nEredeti szöveg binárisan:\n { ");
+			Console.Write(originalBinary);
 			Console.WriteLine(" } " + originalBinary.Length + " bit\n");
 
 			Console.Write("\nSzöveg kódolása a követhezőképpen:\n  { ");
-			Console.WriteLine(compressedString);
+			Console.Write(compressedString);
 			Console.WriteLine(" } " + compressedString.Length + " bit\n");
-			//Console.WriteLine("Kódolt szöveg:\n  { {0} }\n", compressedString);
 
-			Console.WriteLine("\nNyert bitek: {0} bit", originalBinary.Length - compressedString.Length);
+			Console.WriteLine("A tömörítés arány: {0:0.00}", (float)compressedString.Length /
+															 (float)originalBinary.Length);
+			Console.WriteLine("Nyert bitek: {0} bit", originalBinary.Length - compressedString.Length);
 		}
 
 		public void DecompressString()
@@ -295,9 +352,9 @@ namespace InfoKod_HF_02._16
 			for (int i = 0; i < compressedString.Length; i++)
 			{
 				buffer += compressedString[i];
-				if (bynaryTree.ContainsValue(buffer))
+				if (codeWords.ContainsValue(buffer))
 				{
-					decompressedString += bynaryTree.FirstOrDefault(x => x.Value == buffer).Key;
+					decompressedString += codeWords.FirstOrDefault(x => x.Value == buffer).Key;
 					buffer = string.Empty;
 				}
 			}
@@ -315,5 +372,173 @@ namespace InfoKod_HF_02._16
 			}
 		}
 
+		public void GenerateAverageLengthCode()
+		{
+			codeWords = new Dictionary<char, string>();
+
+			int i = 0;
+			foreach (var item in charChance)
+			{
+				string code = Convert.ToString(i, 2);
+				int codeLen = code.Length;
+
+				for (int j = 0; j < highestBorder - codeLen; j++)
+				{
+					code = "0" + code;
+				}
+
+				codeWords.Add(item.Key, code);
+				i++;
+			}
+
+			ShowCodedWords();
+		}
+
+		public void GenerateSingularCode()
+		{
+			codeWords = new Dictionary<char, string>();
+
+			int i = 0;
+			foreach (var item in charChance)
+			{
+				codeWords.Add(item.Key, (i++ % 2).ToString());
+			}
+
+			ShowCodedWords();
+		}
+
+		public void CalculateAverageCodeLength()
+		{
+			int codeLengthSum = 0;
+
+			foreach (var item in codeWords)
+			{
+				codeLengthSum += item.Value.Length;
+			}
+
+			float averageLength = (float)codeLengthSum / codeWords.Count;
+
+			Console.WriteLine("Az átlagos kódszó hosszúsága:\n L(K) = {0:0.00}", averageLength);
+		}
+
+		public void GenerateShannonFanoCode()
+		{
+			codeWords = new Dictionary<char, string>();
+			List<node> nodes = new List<node>();
+
+			foreach (var item in charChance)
+			{
+				nodes.Insert(0, new node() { 
+					sym = item.Key,
+					pro = item.Value,
+					arr = new int[20],
+					top = -1
+				});
+			}
+
+			shannon(0, nodes.Count - 1, nodes);
+			foreach(node item in nodes)
+			{
+				string s = string.Empty;
+				for (int i = 0; i <= item.top; i++)
+				{
+					s += item.arr[i].ToString();
+				}
+				codeWords.Add(item.sym, s);
+			}
+
+			ShowCodedWords();
+		}
+
+		// declare structure node
+		class node
+		{
+			// for storing symbol
+			public char sym;
+
+			// for storing probability or frequency
+			public double pro;
+			public int[] arr;
+			public int top;
+		}
+
+		private void shannon(int lowerLimit, int upperLimit, List<node> p)
+		{
+			double pack1 = 0, pack2 = 0, diff1 = 0, diff2 = 0;
+			int i = 0, k = 0, j = 0;
+			if ((lowerLimit + 1) == upperLimit || lowerLimit == upperLimit || lowerLimit > upperLimit)
+			{
+				if (lowerLimit == upperLimit || lowerLimit > upperLimit)
+					return;
+				p[upperLimit].arr[++(p[upperLimit].top)] = 0;
+				p[lowerLimit].arr[++(p[lowerLimit].top)] = 1;
+				return;
+			}
+			else
+			{
+				for (i = lowerLimit; i <= upperLimit - 1; i++)
+					pack1 = pack1 + p[i].pro;
+				pack2 = pack2 + p[upperLimit].pro;
+				diff1 = pack1 - pack2;
+				if (diff1 < 0)
+					diff1 = diff1 * -1;
+				j = 2;
+				while (j != upperLimit - lowerLimit + 1)
+				{
+					k = upperLimit - j;
+					pack1 = pack2 = 0;
+					for (i = lowerLimit; i <= k; i++)
+						pack1 = pack1 + p[i].pro;
+					for (i = upperLimit; i > k; i--)
+						pack2 = pack2 + p[i].pro;
+					diff2 = pack1 - pack2;
+					if (diff2 < 0)
+						diff2 = diff2 * -1;
+					if (diff2 >= diff1)
+						break;
+					diff1 = diff2;
+					j++;
+				}
+				k++;
+				for (i = lowerLimit; i <= k; i++)
+					p[i].arr[++(p[i].top)] = 1;
+				for (i = k + 1; i <= upperLimit; i++)
+					p[i].arr[++(p[i].top)] = 0;
+
+				// Invoke shannon function
+				shannon(lowerLimit, k, p);
+				shannon(k + 1, upperLimit, p);
+			}
+		}
+
+		public void GenerateGillbertMooreCode()
+		{
+			codeWords = new Dictionary<char, string>();
+			List<node> nodes = new List<node>();
+
+			foreach (var item in unorderedCharChance)
+			{
+				nodes.Insert(0, new node()
+				{
+					sym = item.Key,
+					pro = item.Value,
+					arr = new int[20],
+					top = -1
+				});
+			}
+
+			shannon(0, nodes.Count - 1, nodes);
+			foreach (node item in nodes)
+			{
+				string s = string.Empty;
+				for (int i = 0; i <= item.top; i++)
+				{
+					s += item.arr[i].ToString();
+				}
+				codeWords.Add(item.sym, s);
+			}
+
+			ShowCodedWords();
+		}
 	}
 }
